@@ -1,0 +1,137 @@
+Implementation of "mydump"
+
+The command has been implemented in C supporting 5 features:
+
+mydump [-i interface] [-r file] [-s string] expression
+
+1. Listening/sniffing for packets on the default interface of the machine (en0 for my machine) using "pcap_lookupdev(errbuf)" function which returns the default interface , if not found then puts the error description in "errbuf"
+
+2. Listening/sniffing for packets on the interface specified by the user with the -i interface option using "pcap_open_live(dev, SNAP_LEN, 1, 1000, errbuf)" function where dev contains the name of the interface we want to sniff on. It returns the error in "errbuf" in case of failure. SNAP_LEN specifies the max numbere of bytes to be captured, 1 sets the sniffing to the promiscuous mode, 1000 is the read time out in milliseconds
+
+3. Reading packets from a file in tcpdump format (hw1.pcap) with -r file option using pcap_open_offline(file_name,errbuf) function which takes file name as the parameter and returns error in errbuf if any
+
+4. String matching, keeping only those packets that contain "string" in their payload with -s string option using strstr(payload,string) function which takes the payload and the string to be searched as parameters
+
+5. BPF filter specifies which packets to be dumped for example IP, TCP, UDP, PORT XYZ, HOST XYZ according to the expression specified
+
+Short example outputs
+
+Note- The program with only work with sudo (root) privileges
+
+Run make command
+
+1. sudo ./mydump (should listen to default interface)
+Output- 
+	2017-10-13 12:09:53.4295750388 8c:85:90:40:23:93 -> 00:23:89:d8:b5:42 type 0x800(IPv4) len 65
+	172.25.87.44:63494 -> 172.217.12.142:443 -> UDP 
+	00000   0c 05 0e a2 05 43 87 26  fa 93 60 cf 2b 9a 04 1b    .....C.&..`.+...
+	00016   a5 9b 1f a7 e2 59 da                                .....Y.
+
+	2017-10-13 12:09:53.4295780876 00:23:89:d8:b5:42 -> 8c:85:90:40:23:93 type 0x800(IPv4) len 75
+	172.217.12.142:443 -> 172.25.87.44:63494 -> UDP 
+	00000   10 05 3e 35 f5 4f 5d 26  27 65 b3 ac ef 45 68 69    ..>5.O]&'e...Ehi
+	00016   ac cf 52 1d 4f 4a 7f ee  69 79 45 fe 13 25 8d 5f    ..R.OJ..iyE..%._
+	00032   2d                                                  -
+
+	2017-10-13 12:09:53.4295814018 8c:85:90:40:23:93 -> 00:23:89:d8:b5:42 type 0x800(IPv4) len 54
+	172.25.87.44:59229 -> 52.209.134.18:8282 -> TCP 
+
+	2017-10-13 12:09:53.4295899934 00:23:89:d8:b5:42 -> 8c:85:90:40:23:93 type 0x800(IPv4) len 66
+	52.209.134.18:8282 -> 172.25.87.44:59229 -> TCP
+
+	continued (keyboard interrupt)
+
+2. sudo ./mydump -i en0 udp (should listen to en0 interface for only udp packets)
+Output-
+	2017-10-13 12:10:45.4295600015 00:23:89:d8:b5:42 -> 8c:85:90:40:23:93 type 0x800(IPv4) len 82
+	74.125.22.189:443 -> 172.25.87.44:61372 -> UDP 
+	00000   00 4c 86 f1 c7 da c7 d1  c4 bd 75 c7 02 42 da ea    .L........u..B..
+	00016   ab 72 18 92 9c c0 eb 91  56 45 20 a5 b8 44 51 19    .r......VE ..DQ.
+	00032   a0 b4 a0 53 aa db d8 08                             ...S....
+
+	2017-10-13 12:10:45.4295626149 8c:85:90:40:23:93 -> 00:23:89:d8:b5:42 type 0x800(IPv4) len 78
+	172.25.87.44:61372 -> 74.125.22.189:443 -> UDP 
+	00000   0c 7b 9f 26 09 24 81 d1  99 a6 f2 41 6f 4a 88 20    .{.&.$.....AoJ. 
+	00016   17 ef b6 5e 0c 3b 97 8c  5c 35 fe 6d 8d 70 0e e0    ...^.;..\5.m.p..
+	00032   87 fe 10 3e                                         ...>
+
+	continued (keyboard interrupt)
+
+3. sudo ./mydump -r hw1.pcap -s jpg tcp (should read TCP packets from hw1.pcap with "jpg" in their payload)
+Output-
+	2013-01-12 22:30:48.140733194296558 c4:3d:c7:17:6f:9b -> 00:0c:29:e9:94:8e type 0x800(IPv4) len 177
+	92.240.68.152:9485 -> 192.168.0.200:80 -> TCP 
+	00000   47 45 54 20 68 74 74 70  3a 2f 2f 70 69 63 2e 6c    GET 	http://pic.l
+	00016   65 65 63 68 2e 69 74 2f  69 2f 66 31 36 36 63 2f    eech.it/i/f166c/
+	00032   34 37 39 32 34 36 62 30  61 73 74 74 61 73 2e 6a    479246b0asttas.j
+	00048   70 67 20 48 54 54 50 2f  31 2e 31 0a 55 73 65 72    pg HTTP/1.1.User
+	00064   2d 41 67 65 6e 74 3a 20  77 65 62 63 6f 6c 6c 61    -Agent: webcolla
+	00080   67 65 2f 31 2e 31 33 35  61 0a 48 6f 73 74 3a 20    ge/1.135a.Host: 
+	00096   70 69 63 2e 6c 65 65 63  68 2e 69 74 0a 0a 00       pic.leech.it...
+
+	2013-01-12 22:30:49.4295000249 00:0c:29:e9:94:8e -> c4:3d:c7:17:6f:9b type 0x800(IPv4) len 229
+	192.168.0.200:40341 -> 87.98.246.8:80 -> TCP 
+	00000   47 45 54 20 2f 69 2f 66  31 36 36 63 2f 34 37 39    GET /i/f166c/479
+	00016   32 34 36 62 30 61 73 74  74 61 73 2e 6a 70 67 20    246b0asttas.jpg 
+	00032   48 54 54 50 2f 31 2e 30  0d 0a 55 73 65 72 2d 41    HTTP/1.0..User-A
+	00048   67 65 6e 74 3a 20 4d 6f  7a 69 6c 6c 61 2f 34 2e    gent: Mozilla/4.
+	00064   30 20 28 63 6f 6d 70 61  74 69 62 6c 65 3b 20 4d    0 (compatible; M
+	00080   53 49 45 20 36 2e 30 3b  20 57 69 6e 64 6f 77 73    SIE 6.0; Windows
+	00096   20 4e 54 20 35 2e 31 29  0d 0a 41 63 63 65 70 74     NT 5.1)..Accept
+	00112   3a 20 2a 2f 2a 0d 0a 48  6f 73 74 3a 20 70 69 63    : */*..Host: pic
+	00128   2e 6c 65 65 63 68 2e 69  74 3a 38 30 0d 0a 43 6f    .leech.it:80..Co
+	00144   6e 6e 65 63 74 69 6f 6e  3a 20 63 6c 6f 73 65 0d    nnection: close.
+	00160   0a 0d 0a                                            ...
+
+	2013-01-12 22:31:19.4295121728 c4:3d:c7:17:6f:9b -> 00:0c:29:e9:94:8e type 0x800(IPv4) len 207
+	92.240.68.152:17260 -> 192.168.0.200:80 -> TCP 
+	00000   47 45 54 20 68 74 74 70  3a 2f 2f 65 63 78 2e 69    GET http://ecx.i
+	00016   6d 61 67 65 73 2d 61 6d  61 7a 6f 6e 2e 63 6f 6d    mages-amazon.com
+	00032   2f 69 6d 61 67 65 73 2f  49 2f 34 31 6f 5a 31 58    /images/I/41oZ1X
+	00048   73 69 4f 41 4c 2e 5f 53  4c 35 30 30 5f 41 41 33    siOAL._SL500_AA3
+	00064   30 30 5f 2e 6a 70 67 20  48 54 54 50 2f 31 2e 31    00_.jpg HTTP/1.1
+	00080   0a 55 73 65 72 2d 41 67  65 6e 74 3a 20 77 65 62    .User-Agent: web
+	00096   63 6f 6c 6c 61 67 65 2f  31 2e 31 33 35 61 0a 48    collage/1.135a.H
+	00112   6f 73 74 3a 20 65 63 78  2e 69 6d 61 67 65 73 2d    ost: ecx.images-
+	00128   61 6d 61 7a 6f 6e 2e 63  6f 6d 0a 0a 00             amazon.com...
+
+	2013-01-12 22:32:21.4295116885 c4:3d:c7:17:6f:9b -> 00:0c:29:e9:94:8e type 0x800(IPv4) len 195
+	92.240.68.152:22272 -> 192.168.0.200:80 -> TCP 
+	00000   47 45 54 20 68 74 74 70  3a 2f 2f 77 77 77 2e 6e    GET http://www.n
+	00016   61 74 75 72 65 2e 63 6f  6d 2f 6e 65 77 73 2f 32    ature.com/news/2
+	00032   30 30 39 2f 30 39 30 35  32 37 2f 69 6d 61 67 65    009/090527/image
+	00048   73 2f 34 35 39 34 39 32  61 2d 69 31 2e 30 2e 6a    s/459492a-i1.0.j
+	00064   70 67 20 48 54 54 50 2f  31 2e 31 0a 55 73 65 72    pg HTTP/1.1.User
+	00080   2d 41 67 65 6e 74 3a 20  77 65 62 63 6f 6c 6c 61    -Agent: webcolla
+	00096   67 65 2f 31 2e 31 33 35  61 0a 48 6f 73 74 3a 20    ge/1.135a.Host: 
+	00112   77 77 77 2e 6e 61 74 75  72 65 2e 63 6f 6d 0a 0a    www.nature.com..
+	00128   00                                                  .
+
+	2013-01-13 05:36:15.4295234243 00:0c:29:e9:94:8e -> c4:3d:c7:17:6f:9b type 0x800(IPv4) len 396
+	192.168.0.200:42990 -> 62.252.170.91:80 -> TCP 
+	00000   47 45 54 20 2f 6e 65 77  73 2f 32 30 30 39 2f 30    GET /news/2009/0
+	00016   39 30 35 32 37 2f 69 6d  61 67 65 73 2f 34 35 39    90527/images/459
+	00032   34 39 32 61 2d 69 31 2e  30 2e 6a 70 67 20 48 54    492a-i1.0.jpg HT
+	00048   54 50 2f 31 2e 31 0d 0a  48 6f 73 74 3a 20 77 77    TP/1.1..Host: ww
+	00064   77 2e 6e 61 74 75 72 65  2e 63 6f 6d 0d 0a 55 73    w.nature.com..Us
+	00080   65 72 2d 41 67 65 6e 74  3a 20 4d 6f 7a 69 6c 6c    er-Agent: Mozill
+	00096   61 2f 35 2e 30 20 28 58  31 31 3b 20 55 62 75 6e    a/5.0 (X11; Ubun
+	00112   74 75 3b 20 4c 69 6e 75  78 20 69 36 38 36 3b 20    tu; Linux i686; 
+	00128   72 76 3a 31 37 2e 30 29  20 47 65 63 6b 6f 2f 32    rv:17.0) Gecko/2
+	00144   30 31 30 30 31 30 31 20  46 69 72 65 66 6f 78 2f    0100101 Firefox/
+	00160   31 37 2e 30 0d 0a 41 63  63 65 70 74 3a 20 74 65    17.0..Accept: te
+	00176   78 74 2f 68 74 6d 6c 2c  61 70 70 6c 69 63 61 74    xt/html,applicat
+	00192   69 6f 6e 2f 78 68 74 6d  6c 2b 78 6d 6c 2c 61 70    ion/xhtml+xml,ap
+	00208   70 6c 69 63 61 74 69 6f  6e 2f 78 6d 6c 3b 71 3d    plication/xml;q=
+	00224   30 2e 39 2c 2a 2f 2a 3b  71 3d 30 2e 38 0d 0a 41    0.9,*/*;q=0.8..A
+	00240   63 63 65 70 74 2d 4c 61  6e 67 75 61 67 65 3a 20    ccept-Language: 
+	00256   65 6e 2d 55 53 2c 65 6e  3b 71 3d 30 2e 35 0d 0a    en-US,en;q=0.5..
+	00272   41 63 63 65 70 74 2d 45  6e 63 6f 64 69 6e 67 3a    Accept-Encoding:
+	00288   20 67 7a 69 70 2c 20 64  65 66 6c 61 74 65 0d 0a     gzip, deflate..
+	00304   43 6f 6e 6e 65 63 74 69  6f 6e 3a 20 6b 65 65 70    Connection: keep
+	00320   2d 61 6c 69 76 65 0d 0a  0d 0a                      -alive....
+
+	Capture complete.
+
+
+The program has been tested for robustness on all the possible combinations of options and works fine.
